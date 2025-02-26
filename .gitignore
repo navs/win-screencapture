@@ -1,0 +1,11 @@
+
+## VSCode Settings
+.vscode
+
+## Build Outputs
+/src/out
+/src/Release
+/src/ScreenCapture
+
+## Debugging Files
+vc140.pdb
