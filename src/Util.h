@@ -38,6 +38,12 @@ static WindowInfo FindTargetWindow(const wchar_t* partialTitle) {
             return TRUE; // 계속 검색
         }
 
+        // 현재 프로세스의 창인지 확인
+        DWORD pid;
+        GetWindowThreadProcessId(hwnd, &pid);
+        if (pid == GetCurrentProcessId()) {
+            return TRUE; // 계속 검색
+        }
 
         // 창 제목에 검색어가 포함되어 있는지 확인
         if (wcsstr(title, searchTitle) != nullptr) {
