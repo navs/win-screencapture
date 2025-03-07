@@ -17,6 +17,7 @@ int main(int argc, char* argv[]) {
     }
 
     // argv[1] 를 문자열로 받아서 wchat_t* 로 변환
+    std::wstring thisTitle = Util::ToWString(argv[0]);
     std::wstring windowTitle = Util::ToWString(argv[1]);
     std::wcout << "WindowTitle:" << windowTitle << std::endl;   
 
@@ -29,7 +30,7 @@ int main(int argc, char* argv[]) {
     std::wcout << L"Capture Started. FPS=" << frameRate << std::endl;
     wchar_t fileName[MAX_PATH];
     
-    auto windowInfo = Util::FindTargetWindow(windowTitle.c_str());
+    auto windowInfo = Util::FindTargetWindow(windowTitle.c_str(), thisTitle.c_str());
     if (windowInfo.found) {
         int width = windowInfo.rect.right - windowInfo.rect.left;
         int height = windowInfo.rect.bottom - windowInfo.rect.top;

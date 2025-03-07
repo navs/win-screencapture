@@ -10,6 +10,7 @@
 struct WindowInfo {
     HWND hwnd;
     const wchar_t* partialTitle;
+    const wchar_t* thisTitle;
     RECT rect;
     bool found;
 };
@@ -17,14 +18,16 @@ struct WindowInfo {
 class Util {
 public:
 
-static WindowInfo FindTargetWindow(const wchar_t* partialTitle) {
-    WindowInfo info = { NULL, NULL, {0, 0, 0, 0}, false };
+static WindowInfo FindTargetWindow(const wchar_t* partialTitle, const wchar_t* thisTitle) {
+    WindowInfo info = { NULL, NULL, NULL, {0, 0, 0, 0}, false };
     info.partialTitle = partialTitle;
+    info.thisTitle = thisTitle;
     
     // 현재 활성화된 모든 창을 순회하면서 찾기
     EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL {
         WindowInfo* info = reinterpret_cast<WindowInfo*>(lParam);
         const wchar_t* searchTitle = info->partialTitle;
+        const wchar_t* thisTitle = info->thisTitle;
 
         // 창 제목 가져오기
         wchar_t title[1024];
@@ -33,6 +36,12 @@ static WindowInfo FindTargetWindow(const wchar_t* partialTitle) {
 //        std::wcout << L"Len: " <<  len << std::endl;
 //        std::wcout << L"Title: " << title << L":" << std::endl;
 //        std::wcout << L"PartialTitle: " <<  info->partialTitle << std::endl;
+
+        // thisTitle 이 포함되어 있는지 확인
+        if (wcsstr(title, thisTitle) != nullptr) {
+            return TRUE; // 계속 검색
+        }
+
         // 창이 보이는 상태인지 확인
         if (!IsWindowVisible(hwnd)) {
             return TRUE; // 계속 검색
