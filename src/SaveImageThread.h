@@ -35,10 +35,12 @@ class SaveImageThread {
                 worker_thread.join();
             }
         }
-    
+
         void AddImage(const ScreenCapture::ImageBuffer& buffer, int width, int height, const std::wstring& filename) {
             std::unique_lock<std::mutex> lock(mutex);
-            image_queue.push({ buffer, width, height, filename });
+            ScreenCapture::ImageBuffer image_buffer(buffer);
+            image_queue.push({ image_buffer, width, height, filename });
+            std::wcout << L"AddImage: " << filename << std::endl;
             condition.notify_one();
         }
     
@@ -56,18 +58,18 @@ class SaveImageThread {
                 {
                     std::unique_lock<std::mutex> lock(mutex);
                     condition.wait(lock, [this] { return !image_queue.empty() || !running; });
-                    if (!running && image_queue.empty()) break;
+                    if (image_queue.empty()) break;
                     image_info = image_queue.front();
                     image_queue.pop();
                 }
-    
                 SaveImageToFile(image_info.buffer, image_info.width, image_info.height, image_info.filename);
             }
         }
     
         void SaveImageToFile(const ScreenCapture::ImageBuffer& buffer, int width, int height, const std::wstring& filename) {
-            GUID CLSID_PngEncoder;
-            CLSIDFromString(L"{1B72AAE1-E766-4A07-8327-0E86B800BCF7}", &CLSID_PngEncoder);
+            //GUID CLSID_PngEncoder;
+            //CLSIDFromString(L"{1B72AAE1-E766-4A07-8327-0E86B800BCF7}", &CLSID_PngEncoder);
+    		GUID CLSID_PngEncoder = GUID_ContainerFormatPng;
     
             IWICImagingFactory* pFactory = nullptr;
             IWICBitmapEncoder* pEncoder = nullptr;
@@ -77,59 +79,81 @@ class SaveImageThread {
     
             CoInitialize(nullptr);
             HRESULT hr = CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory, (LPVOID*)&pFactory);
+
+            int step = 0;
     
-            if (SUCCEEDED(hr)) {
+            while (SUCCEEDED(hr)) {
+                step = 1;
                 hr = pFactory->CreateStream(&pStream);
-            }
-    
-            if (SUCCEEDED(hr)) {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 2;
                 hr = pStream->InitializeFromFilename(filename.c_str(), GENERIC_WRITE);
-            }
-    
-            if (SUCCEEDED(hr)) {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 3;
                 hr = pFactory->CreateEncoder(CLSID_PngEncoder, nullptr, &pEncoder);
-            }
-    
-            if (SUCCEEDED(hr)) {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 4;
                 hr = pEncoder->Initialize(pStream, WICBitmapEncoderNoCache);
-            }
-    
-            if (SUCCEEDED(hr)) {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 5;
                 hr = pEncoder->CreateNewFrame(&pFrameEncode, nullptr);
-            }
-    
-            if (SUCCEEDED(hr)) {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 6;
                 hr = pFrameEncode->Initialize(nullptr);
-            }
-    
-            if (SUCCEEDED(hr)) {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 7;
                 hr = pFrameEncode->SetSize(width, height);
-            }
-    
-            WICPixelFormatGUID format = GUID_WICPixelFormat32bppBGRA;
-            if (SUCCEEDED(hr)) {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 8;
+                WICPixelFormatGUID format = GUID_WICPixelFormat32bppBGRA;
                 hr = pFrameEncode->SetPixelFormat(&format);
-            }
-    
-    
-            if (SUCCEEDED(hr))
-            {
-                //hr = pFactory->CreateBitmapFromMemory(width, height, GUID_WICPixelFormat32bppBGRA, width * 4, static_cast<UINT>(buffer.size()), reinterpret_cast<BYTE*>(buffer.data()), &pBitmap);
-                hr = pFactory->CreateBitmapFromMemory(width, height, GUID_WICPixelFormat32bppBGRA, width * 4, static_cast<UINT>(buffer.size()), (BYTE*)(buffer.data()), &pBitmap);
-            }
-    
-            if (SUCCEEDED(hr))
-            {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 9;
+                hr = pFactory->CreateBitmapFromMemory(width, height, GUID_WICPixelFormat32bppBGRA, width * 4, static_cast<UINT>(buffer.size()), const_cast<BYTE*>(buffer.data()), &pBitmap);
+                // hr = pFactory->CreateBitmapFromMemory(width, height, GUID_WICPixelFormat32bppBGRA, width * 4, static_cast<UINT>(buffer.size()), (BYTE*)(buffer.data()), &pBitmap);
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 10;
                 hr = pFrameEncode->WriteSource(pBitmap, nullptr);
-            }
-    
-    
-            if (SUCCEEDED(hr)) {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 11;
                 hr = pFrameEncode->Commit();
-            }
-    
-            if (SUCCEEDED(hr)) {
+                if (FAILED(hr)) {
+                    break;
+                }
+        
+                step = 12;
                 hr = pEncoder->Commit();
+                break;
             }
     
             if (pBitmap) pBitmap->Release();
@@ -140,10 +164,10 @@ class SaveImageThread {
             CoUninitialize();
     
             if (FAILED(hr)) {
-                std::cerr << "Failed to save image: " << filename.c_str() << std::endl;
+                std::wcerr << L"Failed to save image: [" << step << L"] " << hr << L":" << filename << std::endl;
             }
             else {
-                std::cout << "Saved image: " << filename.c_str() << std::endl;
+                std::wcout << L"Saved image: " << filename << std::endl;
             }
         }
     

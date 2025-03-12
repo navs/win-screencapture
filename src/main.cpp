@@ -57,17 +57,24 @@ int main(int argc, char* argv[]) {
                 // Capture 에 걸린 시간 출력
                 auto before = std::chrono::system_clock::now();
 
-                std::wcout << L"time:" << timestamp << std::endl;
+                // std::wcout << L"time:" << timestamp << std::endl;
                 // fileName 을 timestamp + ".png" 로 저장
                 StringCbPrintfW(fileName, sizeof(fileName), L"%s.png", timestamp);
                 auto fileNameStr = std::wstring(fileName);
-                screenCapture.CaptureScreenRegion(windowInfo.rect.left, windowInfo.rect.top, width, height, fileNameStr, captureCallback);
+
+                for (int i = 0; i < 3; i++) {
+                    bool success = screenCapture.CaptureScreenRegion(windowInfo.rect.left, windowInfo.rect.top, width, height, fileNameStr, captureCallback);
+                    if (success) {
+                        break;
+                    }
+                    std::this_thread::sleep_for(std::chrono::microseconds(1));
+                }
 
                 auto after = std::chrono::system_clock::now();
                 std::chrono::duration<double> elapsed = after - before;
                 std::wcout << L"Capture Time: " << elapsed.count() << L" sec" << std::endl;
 
-                // return false; TEST -// dont continue
+                //return false; // TEST -// dont continue
                 return true;
             };
             FrameRunner frameRunner;
@@ -76,11 +83,13 @@ int main(int argc, char* argv[]) {
         } catch (const std::exception& e) {
             std::wcerr << L"Error: " << e.what() << std::endl;
         }
+        saveImageThread.Stop();
+
     }   else {
         std::wcerr << L"Window not found" << std::endl;
     }
 
-
+    std::wcout << L"Capture Finished." << std::endl;
     CoUninitialize();
     return 0;
 }

@@ -46,6 +46,7 @@ public:
 
         if (FAILED(hr)) {
             // Handle errors such as DXGI_ERROR_WAIT_TIMEOUT (no new frame)
+            std::cerr << "Failed to acquire next frame." << std::endl;
             return false;
         }
 
@@ -54,6 +55,7 @@ public:
         desktopResource->Release();
 
         if (FAILED(hr)) {
+            std::cerr << "Failed to get texture from acquired resource." << std::endl;
             deskDupl->ReleaseFrame();
             return false;
         }
@@ -72,6 +74,7 @@ public:
 
         hr = device->CreateTexture2D(&subResourceTextureDesc, nullptr, &subResourceTexture);
         if (FAILED(hr)) {
+            std::cerr << "Failed to create subresource texture." << std::endl;
             acquiredTexture->Release();
             deskDupl->ReleaseFrame();
             return false;
@@ -91,6 +94,7 @@ public:
         D3D11_MAPPED_SUBRESOURCE mappedResource;
         hr = context->Map(subResourceTexture, 0, D3D11_MAP_READ, 0, &mappedResource);
         if (FAILED(hr)) {
+            std::cerr << "Failed to map subresource texture." << std::endl;
             acquiredTexture->Release();
             subResourceTexture->Release();
             deskDupl->ReleaseFrame();
@@ -104,6 +108,11 @@ public:
         acquiredTexture->Release();
         subResourceTexture->Release();
         deskDupl->ReleaseFrame();
+
+        if (IsFrameEmpty(buffer, w, h)) {
+            std::cerr << "Empty frame captured." << std::endl;
+            return false;
+        }
 
         callback(buffer, w, h, filename);
         return true;
@@ -182,6 +191,34 @@ private:
             device->Release();
             device = nullptr;
         }
+    }
+
+    bool IsFrameEmpty(const ScreenCapture::ImageBuffer& buffer, int width, int height) {
+        // Check if the buffer is empty or has zero dimensions
+        if (buffer.empty() || width <= 0 || height <= 0) {
+            return true;
+        }
+    
+        // Assuming the buffer is BGRA32 format (4 bytes per pixel)
+        size_t pixelCount = width * height;
+        const unsigned char* pixelData = buffer.data();
+    
+        // Iterate through all pixels and check if they are all black (0, 0, 0, 0)
+        for (size_t i = 0; i < pixelCount; ++i) {
+            size_t pixelIndex = i * 4;
+            unsigned char blue = pixelData[pixelIndex];
+            unsigned char green = pixelData[pixelIndex + 1];
+            unsigned char red = pixelData[pixelIndex + 2];
+            unsigned char alpha = pixelData[pixelIndex + 3];
+    
+            // If any pixel is not fully transparent black, the frame is not empty
+            if (blue != 0 || green != 0 || red != 0 || alpha != 0) {
+                return false;
+            }
+        }
+    
+        // All pixels are black, so the frame is considered empty
+        return true;
     }
 
 private:
