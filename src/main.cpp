@@ -2,6 +2,7 @@
 #include <iostream>
 #include <locale>
 #include <string>
+#include <chrono>
 #include "Util.h"
 #include "ScreenCapture.h"
 #include "FrameRunner.h"
@@ -39,11 +40,20 @@ int main(int argc, char* argv[]) {
         try {
             FrameRunner runner;
             // 3프레임당 timestamp 출력
-            auto capture = [&](const wchar_t* timestamp) -> void {
+            auto capture = [&](const wchar_t* timestamp) -> bool {
+                // Capture 에 걸린 시간 출력
+                auto before = std::chrono::system_clock::now();
+
                 std::wcout << L"time:" << timestamp << std::endl;
                 // fileName 을 timestamp + ".png" 로 저장
                 StringCbPrintfW(fileName, sizeof(fileName), L"%s.png", timestamp);
                 ScreenCapture::CaptureScreenRegion(windowInfo.rect.left, windowInfo.rect.top, width, height, fileName);
+
+                auto after = std::chrono::system_clock::now();
+                std::chrono::duration<double> elapsed = after - before;
+                std::wcout << L"Capture Time: " << elapsed.count() << L" sec" << std::endl;
+
+                return false; // dont continue
             };
             FrameRunner frameRunner;
             frameRunner.Run(frameRate, capture);

@@ -26,7 +26,7 @@ public:
         }
     }
 
-    void CallbackWithTimestamp(SYSTEMTIME st, std::function<void(const wchar_t* timestamp)> callback) {
+    bool CallbackWithTimestamp(SYSTEMTIME st, std::function<bool(const wchar_t* timestamp)> callback) {
         WCHAR timestamp[MAX_PATH];
         StringCbPrintfW(timestamp, sizeof(timestamp),
             L"%04d%02d%02d_%02d%02d%02d_%03d",
@@ -34,10 +34,10 @@ public:
             st.wHour, st.wMinute, st.wSecond,
             m_frameCount);
 
-        callback(timestamp);
+        return callback(timestamp);
     }
 
-    void Run(int frames, std::function<void(const wchar_t* timestamp)> callback) {      
+    void Run(int frames, std::function<bool(const wchar_t* timestamp)> callback) {      
         double frameDelay = 1000.0 / frames;
 
         SYSTEMTIME lastTime;
@@ -65,7 +65,10 @@ public:
             }
             lastTime = currentTime;
             m_frameCount = nextFrameCount;
-            CallbackWithTimestamp(currentTime, callback);
+            auto willContinue = CallbackWithTimestamp(currentTime, callback);
+            if (!willContinue) {
+                break;
+            }
         }
     }
 };
