@@ -6,8 +6,11 @@
 #include "Util.h"
 #include "ScreenCapture.h"
 #include "FrameRunner.h"
+#include "SaveImageThread.h"
 
 int main(int argc, char* argv[]) {
+
+    CoInitialize(nullptr);
 
     // 한글 출력을 위한 locale 설정 
     std::locale::global(std::locale("kor"));
@@ -36,6 +39,16 @@ int main(int argc, char* argv[]) {
         int width = windowInfo.rect.right - windowInfo.rect.left;
         int height = windowInfo.rect.bottom - windowInfo.rect.top;
 
+        ScreenCapture screenCapture;
+        SaveImageThread saveImageThread;
+
+        // Start Thread
+        saveImageThread.Start();
+
+        auto captureCallback = [&](const ScreenCapture::ImageBuffer& buffer, int width, int height, const std::wstring& filename) {
+            saveImageThread.AddImage(buffer, width, height, filename);  
+        };
+
         std::wcout << "Found: (" << windowInfo.rect.left << ", " << windowInfo.rect.top << ") (" << width << " x " << height << " )" << std::endl;
         try {
             FrameRunner runner;
@@ -47,13 +60,15 @@ int main(int argc, char* argv[]) {
                 std::wcout << L"time:" << timestamp << std::endl;
                 // fileName 을 timestamp + ".png" 로 저장
                 StringCbPrintfW(fileName, sizeof(fileName), L"%s.png", timestamp);
-                ScreenCapture::CaptureScreenRegion(windowInfo.rect.left, windowInfo.rect.top, width, height, fileName);
+                auto fileNameStr = std::wstring(fileName);
+                screenCapture.CaptureScreenRegion(windowInfo.rect.left, windowInfo.rect.top, width, height, fileNameStr, captureCallback);
 
                 auto after = std::chrono::system_clock::now();
                 std::chrono::duration<double> elapsed = after - before;
                 std::wcout << L"Capture Time: " << elapsed.count() << L" sec" << std::endl;
 
-                return false; // dont continue
+                // return false; TEST -// dont continue
+                return true;
             };
             FrameRunner frameRunner;
             frameRunner.Run(frameRate, capture);
@@ -64,6 +79,9 @@ int main(int argc, char* argv[]) {
     }   else {
         std::wcerr << L"Window not found" << std::endl;
     }
+
+
+    CoUninitialize();
     return 0;
 }
 
